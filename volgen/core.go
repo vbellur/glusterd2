@@ -4,13 +4,13 @@ package volgen
 
 import (
 	"fmt"
-	"github.com/gluster/glusterd2/volume"
 	"os"
+	"path"
 	"strings"
-)
 
-const (
-	workdir = "/var/lib/glusterd"
+	"github.com/gluster/glusterd2/volume"
+
+	config "github.com/spf13/viper"
 )
 
 var (
@@ -60,7 +60,7 @@ func GenerateVolfile(vinfo *volume.Volinfo) error {
 }
 
 func getVolumeDir(vinfo *volume.Volinfo, dir *string) {
-	*dir = fmt.Sprintf("%s/vols/%s", workdir, vinfo.Name)
+	*dir = path.Join(config.GetString("localstatedir"), "vols", vinfo.Name)
 }
 
 func getServerFilePath(vinfo *volume.Volinfo, path *string, brickinfo volume.Brickinfo) error {
@@ -90,4 +90,20 @@ func getClientFilePath(vinfo *volume.Volinfo, path *string) error {
 
 	*path = fmt.Sprintf("%s/trusted-%s.tcp-fuse.vol", vdir, vinfo.Name)
 	return err
+}
+
+// DeleteVolfile deletes the volfiles created for the volume
+// XXX: This is a quick and dirty implementation with no error checking.
+// A proper implementation will be implemented when volgen is re-implemented.
+func DeleteVolfile(vol *volume.Volinfo) error {
+	var path string
+
+	_ = getClientFilePath(vol, &path)
+	_ = os.Remove(path)
+
+	for _, b := range vol.Bricks {
+		_ = getServerFilePath(vol, &path, b)
+		_ = os.Remove(path)
+	}
+	return nil
 }
